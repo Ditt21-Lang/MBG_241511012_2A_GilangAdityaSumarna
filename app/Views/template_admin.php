@@ -60,6 +60,7 @@
 
     <div class="nav-container">
         <a href="<?= base_url('admin/home') ?>" class="nav-link"> Home </a>
+        <a href="<?= base_url('admin/bahan_baku/add') ?>" class="nav-link"> Bahan Baku </a>
         <a href="<?= base_url('logout') ?>" class="nav-link"> Logout </a>
     </div>
 
