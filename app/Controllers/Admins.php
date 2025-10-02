@@ -11,6 +11,10 @@ use App\Models\Course;
 use CodeIgniter\HTTP\Exceptions\RedirectException;
 
 class Admins extends BaseController{
+
+    /** 
+      * Menampilkan page home dari admin 
+      */
     public function admin(){
 
         $data = [
@@ -21,20 +25,26 @@ class Admins extends BaseController{
         return view('template_admin', $data);
     }
 
+    /**
+     *  Menampilkan list bahan baku 
+     */
     public function bahan_baku()
     {
         $BahanBakuModel = new BahanBaku();
         $dataBahanBaku = $BahanBakuModel->findAll();
+     
+        $data = [
+            'title' => 'Daftar Bahan Baku',
+            'content' => view('list_bahan_baku', ['bahan_baku' => $dataBahanBaku])
 
-        $data =[
-            'title' => 'Students List',
-            'content'=> view('list_bahan_baku', ['bahan_baku' => $dataBahanBaku])
         ];
 
         return view('template_admin', $data);
-        
     }
 
+    /**
+     * Menampilkan form tambah bahan baku
+     */
     public function add_bahan_baku(){
         $data = [
             'title' => 'Home Admin',
@@ -44,11 +54,15 @@ class Admins extends BaseController{
         return view('template_admin', $data);
     }
 
+    /**
+     * Proses memasukkan data dari form tambah bahan baku ke
+     * dalam tabel users
+     */
     public function save_bahan_baku()
     {
         $BahanBakuModel = new BahanBaku();
 
-        // Ambil data dari form
+        // Ambil data dari form tambah bahan baku
         $userData = [
             'nama'   => $this->request->getPost('nama'),
             'kategori'  => $this->request->getPost('kategori'),

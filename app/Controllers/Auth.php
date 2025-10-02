@@ -6,10 +6,17 @@ use App\Models\User;
 
 class Auth extends BaseController{
 
+    /**
+     * Menampilkan halaman login
+     */
     public function login(){
         return view('login');
     }
 
+    /** 
+      * Mengecek email dan password login,
+      * akan menampilkan error jika ada 
+      * salah satu form yang salah atau kosong kosong */
     public function processLogin(){
         $session = session();
         $userModel = new User();
@@ -32,21 +39,28 @@ class Auth extends BaseController{
 
                 // Redirect sesuai role
                 if ($user['role'] === 'gudang'){
-                    return redirect('')->to(base_url('admin/home'));
+                    return redirect()->to(base_url('admin/home'));
                 } else if ($user['role'] === 'dapur'){
-                    return redirect('')->to(base_url('client/home'));
+                    return redirect()->to(base_url('client/home'));
                 }
 
+            // Eksekusi jika password salah
             } else{
                 $session->setFlashdata('error', 'Password Salah!');
                 return redirect()->to(base_url('/'));
             }
+
+        // Eksekusi jika Username salah (tidak ditemukan)
         } else {
             $session->setFlashdata('error','Email tidak ditemukan!');
             return redirect()->to(base_url('/'));
         }
     }
 
+    /**
+     * Proses logout, menghancurkan session dan
+     * diarahkan kembali ke halaman login
+     */
     public function logout(){
         session()->destroy();
         return redirect()->to(base_url('/'));
