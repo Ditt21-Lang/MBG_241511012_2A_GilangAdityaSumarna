@@ -1,5 +1,6 @@
 <?php
 
+use App\Controllers\Clients;
 use CodeIgniter\Router\RouteCollection;
 
 /**
@@ -14,6 +15,7 @@ $routes->post('auth/processLogin', 'Auth::processLogin');
 // Student routes (hanya student)
 $routes->group('client', ['filter' => 'auth:dapur'], function($routes){
     $routes->get('home', 'Clients::client');
+    $routes->get('status_permintaan', 'Clients::permintaan');
 });
 
 // Admin routes (hanya admin)

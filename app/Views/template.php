@@ -59,7 +59,8 @@
     </div>
 
     <div class="nav-container">
-        <a href="<?= base_url('student/home') ?>" class="nav-link">Home</a>
+        <a href="<?= base_url('client/home') ?>" class="nav-link">Home</a>
+        <a href="<?= base_url('client/status_permintaan') ?>" class="nav-link">Permintaan</a>
         <a href="<?= base_url('logout') ?>" class="nav-link"> Logout </a>
     </div>
 

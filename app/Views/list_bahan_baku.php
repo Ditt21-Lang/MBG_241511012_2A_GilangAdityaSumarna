@@ -20,6 +20,7 @@
 
     </style>
 </head>
+<body>
     <div class="text-center">
         <h2 class="mb-4">List Bahan Baku</h2>
         
