@@ -8,6 +8,7 @@ use App\Models\Takes;
 use App\Models\User;
 use App\Models\Students;
 use App\Models\Course;
+use CodeIgniter\Cache\Handlers\WincacheHandler;
 use CodeIgniter\HTTP\Exceptions\RedirectException;
 
 class Admins extends BaseController{
@@ -115,6 +116,38 @@ class Admins extends BaseController{
             return redirect()->back()->with('error', 'Gagal mengupdate stok bahan baku');
         }
     }
+
+    /**
+     * Proses menghapus bahan baku yang expired
+     */
+    public function delete_expired($id){
+        $bahanBakuModel = new BahanBaku();
+
+        $bahanBakuExpired = $bahanBakuModel->find($id);
+        
+        if(!$bahanBakuExpired){
+            return redirect()->back()->with('error', 'Gagal mengambil data bahan baku');
+        }
+
+        $tanggalExpired = $bahanBakuExpired['tanggal_kadaluarsa'];
+        $namaBahanBaku = $bahanBakuExpired['nama'];
+
+        $hariIni = new \DateTime();
+        $expired = new \DateTime($tanggalExpired);
+        $isKadaluarsa = $hariIni > $expired;
+
+        if (!$isKadaluarsa){
+            return redirect()->back()->with('error', 'Bahan baku: ' . $namaBahanBaku . ' belum kadaluarsa!');
+        }
+
+        if ($bahanBakuModel->delete($id)){
+            return redirect()->to(base_url('admin/bahan_baku'))
+                            ->with('success', 'Data bahan baku: ' . $namaBahanBaku . ' Berhasil dihapus');
+        } else {
+            return redirect()->back()->with('error', 'Gagal menghapus Bahan Baku: ' . $namaBahanBaku . '.');
+        }
+    }
+
 }
 
 ?>
