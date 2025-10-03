@@ -22,5 +22,6 @@ $routes->group('admin', ['filter' => 'auth:gudang'], function($routes){
     $routes->get('bahan_baku','Admins::bahan_baku');
     $routes->get('bahan_baku/add','Admins::add_bahan_baku');
     $routes->post('bahan_baku/save','Admins::save_bahan_baku');
+    $routes->post('bahan_baku/update', 'Admins::update_stok');
 });
 

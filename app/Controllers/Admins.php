@@ -83,6 +83,38 @@ class Admins extends BaseController{
                             ->with('error', 'Gagal menambahkan data bahan baku');
         }
     }
+
+    /**
+     * Proses menyimpan upodate jumlah stok 
+     */
+    public function update_stok(){
+        $bahanBakuModel = new BahanBaku();
+
+        // Mengambil id dan jumlah pada form
+        $id = $this->request->getPost('id');
+        $jumlahStokBaru = $this->request->getPost('jumlah');
+
+        // Mengambil nama bahan baku untuk ditampilkan pada pesan nantinya
+        $bahanBakuLama = $bahanBakuModel->find($id);
+        $namaBahanBaku = $bahanBakuLama['nama'];
+
+        // Cek apakah bahan baku ada
+        if (!$id){
+            return redirect()->back()
+                            ->with('error', 'Bahan baku tidak ditemukan');
+        }
+
+        $dataUpdate = [
+            'jumlah' => (int)$jumlahStokBaru
+        ];
+
+        // Update bahan baku dengan acuan id dan mengupdate kolom jumlah ($dataUpdate)
+        if ($bahanBakuModel->update($id, $dataUpdate)){
+            return redirect()->to(base_url('admin/bahan_baku'))->with('success', 'Stok bahan baku: ' . $namaBahanBaku . ' Berhasil diperbarui');
+        } else {
+            return redirect()->back()->with('error', 'Gagal mengupdate stok bahan baku');
+        }
+    }
 }
 
 ?>
