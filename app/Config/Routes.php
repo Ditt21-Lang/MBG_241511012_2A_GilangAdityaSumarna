@@ -28,5 +28,8 @@ $routes->group('admin', ['filter' => 'auth:gudang'], function($routes){
     $routes->post('bahan_baku/save','Admins::save_bahan_baku');
     $routes->post('bahan_baku/update', 'Admins::update_stok');
     $routes->delete('bahan_baku/delete/(:num)', 'Admins::delete_expired/$1');
+    $routes->get('list_persetujuan', 'Admins::list_permintaan_admin');
+    $routes->get('list_persetujuan/proses/(:num)', 'Admins::proses_permintaan_view/$1');
+    $routes->post('list_persetujuan/save/(:num)', 'Admins::submit_proses_permintaan/$1');
 });
 

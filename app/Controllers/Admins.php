@@ -3,11 +3,10 @@
 namespace App\Controllers;
 
 use App\Models\BahanBaku;
-use App\Models\Employee;
-use App\Models\Takes;
+use App\Models\Permintaan;
+use App\Models\PermintaanDetail;
 use App\Models\User;
-use App\Models\Students;
-use App\Models\Course;
+use CodeIgniter\I18n\Time; 
 use CodeIgniter\Cache\Handlers\WincacheHandler;
 use CodeIgniter\HTTP\Exceptions\RedirectException;
 
@@ -31,6 +30,8 @@ class Admins extends BaseController{
      */
     public function bahan_baku()
     {
+
+        $this->update_status_bahan_baku();
         $BahanBakuModel = new BahanBaku();
         $dataBahanBaku = $BahanBakuModel->findAll();
      
@@ -41,6 +42,36 @@ class Admins extends BaseController{
         ];
 
         return view('template_admin', $data);
+    }
+
+    private function update_status_bahan_baku()
+    {
+        $bahanBakuModel = new BahanBaku();
+        $db = \Config\Database::connect();
+        $currentDate = Time::now()->toDateString(); // Mengambil tanggal hari ini (Y-m-d)
+        
+        // 1. Update status menjadi 'habis' jika jumlah = 0 dan status bukan 'habis'
+        $db->table('bahan_baku')
+           ->set('status', 'habis')
+           ->where('jumlah <=', 0)
+           ->where('status !=', 'habis')
+           ->update();
+        
+        // 2. Update status menjadi 'kadaluarsa' jika tanggal kadaluarsa sudah terlewati
+        $db->table('bahan_baku')
+           ->set('status', 'kadaluarsa')
+           ->where('tanggal_kadaluarsa <', $currentDate)
+           ->where('status !=', 'kadaluarsa')
+           ->update();
+           
+        // 3. Update status kembali menjadi 'tersedia' jika sudah ada stok (jumlah > 0) dan belum kadaluarsa
+        // Penting: Status ini akan mengembalikan item yang sebelumnya 'habis' tapi baru diisi stoknya
+        $db->table('bahan_baku')
+           ->set('status', 'tersedia')
+           ->where('jumlah >', 0)
+           ->where('tanggal_kadaluarsa >=', $currentDate)
+           ->whereIn('status', ['habis', 'segera_kadaluarsa']) // Hanya kembalikan yang sebelumnya 'habis' atau 'kadaluarsa_segera'
+           ->update();
     }
 
     /**
@@ -128,15 +159,12 @@ class Admins extends BaseController{
         if(!$bahanBakuExpired){
             return redirect()->back()->with('error', 'Gagal mengambil data bahan baku');
         }
-
-        $tanggalExpired = $bahanBakuExpired['tanggal_kadaluarsa'];
         $namaBahanBaku = $bahanBakuExpired['nama'];
+        $isKadaluarsa = $bahanBakuExpired['status'];
 
-        $hariIni = new \DateTime();
-        $expired = new \DateTime($tanggalExpired);
-        $isKadaluarsa = $hariIni > $expired;
-
-        if (!$isKadaluarsa){
+        // Proses pengecekan validasi ketika delete
+        // Cek apakah bahan baku sudah kadaluarsa
+        if ($isKadaluarsa !== 'kadaluarsa'){
             return redirect()->back()->with('error', 'Bahan baku: ' . $namaBahanBaku . ' belum kadaluarsa!');
         }
 
@@ -145,6 +173,149 @@ class Admins extends BaseController{
                             ->with('success', 'Data bahan baku: ' . $namaBahanBaku . ' Berhasil dihapus');
         } else {
             return redirect()->back()->with('error', 'Gagal menghapus Bahan Baku: ' . $namaBahanBaku . '.');
+        }
+    }
+
+    /**
+     * Menampilkan list permintaan dari akun dapur untuk admin
+     */
+    public function list_permintaan_admin()
+    {
+        $permintaanModel = new Permintaan();
+        $userModel = new User();
+
+        // Ambil semua permintaan dengan status 'menunggu'
+        // JOIN ke tabel user untuk mendapatkan nama pemohon
+        $dataPermintaan = $permintaanModel
+            ->select('permintaan.*, user.name')
+            ->where('permintaan.status', 'menunggu')
+            ->join('user', 'user.id = permintaan.pemohon_id')
+            ->orderBy('permintaan.created_at', 'ASC') // Urutkan yang terlama
+            ->findAll();
+
+        $data = [
+            'title' => 'Daftar Permintaan Menunggu Persetujuan',
+            'list_permintaan' => $dataPermintaan,
+            'content' => view('admin_list_permintaan_menunggu', ['list_permintaan' => $dataPermintaan])
+        ];
+
+        return view('template_admin', $data); 
+    }
+
+    public function proses_permintaan_view($id)
+    {
+        $permintaanModel = new Permintaan();
+        $permintaanDetailModel = new PermintaanDetail();
+        
+
+        // Ambil informasi user yang meminta beserta menu makanan dan porsinya
+        $permintaanInduk = $permintaanModel->select('permintaan.*, user.name')
+                                            ->join('user', 'permintaan.pemohon_id = user.id')
+                                            ->find($id);
+
+        if (!$permintaanInduk || $permintaanInduk['status'] !== 'menunggu') {
+            return redirect()->to(base_url('admin/list_permintaan_admin'))->with('error', 'Permintaan tidak ditemukan atau sudah diproses.');
+        }
+
+        // Ambil detail bahan baku
+        $detailBahan = $permintaanDetailModel
+            ->select('permintaan_detail.*, bahan_baku.nama, bahan_baku.satuan, bahan_baku.jumlah')
+            ->join('bahan_baku', 'bahan_baku.id = permintaan_detail.bahan_id')
+            ->where('permintaan_id', $id)
+            ->findAll();
+
+        // Array data untuk passing ke View
+        $viewData = [
+            'title' => 'Proses Permintaan',
+            'permintaan' => $permintaanInduk,
+            'detail_bahan' => $detailBahan,
+        ];
+
+        // Array data utama untuk template (koreksi baris ini)
+        $data = [
+            'title' => 'Proses Permintaan ID ' . $id,
+            'content' => view('admin_form_proses_permintaan', $viewData) 
+        ];
+
+        return view('template_admin', $data);
+    }
+
+    /**
+     * Proses mengubah status di database sesuai aksi (setuju / tidak setuju)
+     */
+    public function submit_proses_permintaan($id){
+        $permintaanModel = new Permintaan();
+        $bahanBakuModel = new BahanBaku();
+
+        $db = \Config\Database::connect();
+
+        // Mengambil aksi yang dilakukan pada form
+        $aksi = $this->request->getPost('aksi');
+
+        $permitaan = $permintaanModel->find($id);
+
+        $db->transBegin();
+
+        // try - catch untuk memastikan jika ada flow yang salah / error terjadi
+        try{
+
+            // Jika aksi ditolak, update status ke table permintaan
+            if ($aksi == 'tolak'){
+                $permintaanModel->update($id, [
+                    'status' => 'ditolak'
+                ]);
+
+            // Jika aksi disetujui
+            } elseif ($aksi == 'disetujui') {
+
+                // Mengambil data dalam database yang akan terpangaruh jika permintaan disetujui
+                $detailBahan = $db->table('permintaan_detail pd')
+                    ->select('pd.bahan_id, pd.jumlah_diminta, bb.jumlah')
+                    ->join('bahan_baku bb', 'bb.id = pd.bahan_id')
+                    ->where('pd.permintaan_id', $id)
+                    ->get()
+                    ->getResultArray();
+
+                // Looping pada setiap bahan yang diminta
+                foreach ($detailBahan as $detail){
+                    $bahan_id = $detail['bahan_id'];
+                    $jumlah_diminta = $detail['jumlah_diminta'];
+                    $stok_lama = $detail['jumlah'];
+                    $stok_baru = $stok_lama - $jumlah_diminta;
+                
+                    // Pengecekan jika jumlah yang diminta lebih dari stok yang tersedia
+                    if ($stok_baru < 0){
+                        throw new \Exception("Stok tidak mencukupi untuk bahan ID {$bahan_id}.");
+                    }
+
+                    $updateData = ['jumlah' => $stok_baru];
+
+                    // Pengubaha status pada tabel bahan baku jika stok habis setelah disetujui
+                    if($stok_baru == 0){
+                        $updateData['status'] = 'habis';
+                    }
+
+                    // Update ke tabel bahan baku
+                    $bahanBakuModel->update($bahan_id, $updateData);
+                }
+
+                // Update ke tabel permintaan
+                $permintaanModel->update($id, ['status' => 'disetujui']);
+
+            } else {
+                throw new \Exception('Aksi tidak valid.');
+            }
+
+            // Meyimpan perubahan data
+            $db->transCommit();
+            session()->setFlashdata('success', "Permintaan ID {$id} berhasil diproses sebagai **{$aksi}**.");
+            return redirect()->to(base_url('admin/list_persetujuan'));
+        } catch (\Exception $e){
+
+            // Membatalkan perubahan data
+            $db->transRollback();
+            session()->setFlashdata('error', 'Gagal memproses permintaan: ' . $e->getMessage());
+            return redirect()->back(); 
         }
     }
 

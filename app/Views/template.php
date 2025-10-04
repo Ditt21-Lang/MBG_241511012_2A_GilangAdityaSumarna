@@ -55,7 +55,7 @@
 <body>
 
     <div class="header">
-        <h2>Academic Website</h2>
+        <h2>Pengelola MBG: Dapur</h2>
     </div>
 
     <div class="nav-container">

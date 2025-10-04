@@ -32,10 +32,10 @@
                     <?php 
                     // Menggunakan objek atau array, disesuaikan agar kompatibel
                     foreach ($bahan_list_data as $bahan): 
-                        $id = $bahan->id ?? $bahan['id'] ?? 'N/A';
-                        $nama = $bahan->nama ?? $bahan['nama'] ?? 'N/A';
-                        $satuan = $bahan->satuan ?? $bahan['satuan'] ?? 'N/A';
-                        $jumlah = $bahan->jumlah ?? $bahan['jumlah'] ?? 'N/A';
+                        $id = $bahan['id'] ?? 'N/A';
+                        $nama = $bahan['nama'] ?? 'N/A';
+                        $satuan = $bahan['satuan'] ?? 'N/A';
+                        $jumlah = $bahan['jumlah'] ?? 'N/A';
                     ?>
                     <tr>
                         <td><?= $id ?></td>

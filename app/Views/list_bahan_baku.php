@@ -1,23 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Mahasiswa</title>
+    <title>List Bahan Baku</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        @keyframes SlideOutRight {
-            from { transform: translate(0); opacity: 1;}
-            to { transform: translateY(100%); opacity: 0;}
-        }
-
-        .slide-out{
-            animation: SlideInLeft 1.0s ease forwards;
-        }
-
         .table th{
             color:rgb(253, 244, 227);
             background-color: rgb(19, 70, 134);
         }
-
     </style>
 </head>
 <body>
@@ -39,50 +29,52 @@
         <br>
         
         <table class="table table-bordered table-striped-columns mx-auto" style="width: 90%; border-radius: 10px;">
-            <tr>
-                <th>No</th>
-                <th>Nama</th>
-                <th>Kategori</th>
-                <th>Jumlah</th>
-                <th>Satuan</th>
-                <th>Tgl. Masuk</th>
-                <th>Tgl. Kadaluarsa</th>
-                <th>Status</th>
-                <th>Created At</th>
-                <th>Actions</th>
-            </tr>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Nama</th>
+                    <th>Kategori</th>
+                    <th>Jumlah</th>
+                    <th>Satuan</th>
+                    <th>Tgl. Masuk</th>
+                    <th>Tgl. Kadaluarsa</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
             <tbody>
                 <?php 
                 $hariIni = new DateTime();
                 $no = 1;
                 foreach ($bahan_baku as $item): 
                     $expired = new DateTime($item['tanggal_kadaluarsa']);
-                    $stok = $item['jumlah'];
-                    $isKadaluarsa = $hariIni > $expired;
                     
-                    // Hitung selisih HANYA jika tanggal expired belum terlewati
-                    $selisih = 999; 
-                    if ($expired > $hariIni) {
-                        $selisih = $hariIni->diff($expired)->days;
-                    }
+                    // Ambil status dari database, buat huruf kecil
+                    $statusDB = strtolower($item['status']); 
+                    $statusTampil = ucfirst($statusDB); // Default: status dari DB
                     
-                    $statusTampil = 'Tersedia'; // Default
-                    
-                    // Logika Penentuan Status
-                    if ($stok <= 0){
-                        $statusTampil = 'Habis';
-                    } else if ($isKadaluarsa){
-                        $statusTampil = 'Kadaluarsa';
-                    } else if ($selisih <= 3){
-                        $statusTampil = 'Segera Kadaluarsa';
-                    }
-                    
-                    // Menentukan warna badge/text untuk Bootstrap (Opsional)
+                    // Logika Cepat untuk Status "Segera Kadaluarsa" (Hanya di View)
                     $statusClass = '';
-                    if ($statusTampil == 'Habis') $statusClass = 'text-danger';
-                    else if ($statusTampil == 'Kadaluarsa') $statusClass = 'text-black bg-danger-subtle';
-                    else if ($statusTampil == 'Segera Kadaluarsa') $statusClass = 'text-warning';
-                    else $statusClass = 'text-success';
+                    
+                    if ($statusDB == 'tersedia' && $expired > $hariIni) {
+                        $selisih = $hariIni->diff($expired)->days;
+                        
+                        if ($selisih <= 3){
+                            $statusTampil = 'Segera Kadaluarsa (' . $selisih . ' hari lagi)';
+                        }
+                    }
+                    
+                    // Menentukan warna berdasarkan status akhir
+                    if ($statusDB == 'habis') {
+                        $statusClass = 'text-danger';
+                    } else if ($statusDB == 'kadaluarsa') {
+                        $statusClass = 'text-black bg-danger-subtle';
+                    } else if (strpos($statusTampil, 'Segera Kadaluarsa') !== false) {
+                        $statusClass = 'text-warning';
+                    } else { 
+                        $statusClass = 'text-success';
+                    }
                 ?>
                 <tr>
                     <td><?= $no++ ?></td>
@@ -122,6 +114,7 @@
         <br><br>
         <a href="<?= base_url('admin/bahan_baku/add') ?>" class="btn btn-info"> Tambah Bahan Baku </a>
     </div>
+    
     <div class="modal fade" id="editStokModal" tabindex="-1" aria-labelledby="editStokModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -148,6 +141,8 @@
             </div>
         </div>
     </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Script untuk menghilangkan flash message setelah 3 detik
         const flash = document.getElementById('flash');
@@ -155,7 +150,6 @@
             setTimeout(() => {
                 flash.style.opacity = '0';
                 flash.style.transition = 'opacity 1s';
-                // Menghapus elemen setelah animasi selesai (misalnya 1 detik setelah opacity 0)
                 setTimeout(() => {
                     flash.remove();
                 }, 1000); 
@@ -167,7 +161,6 @@
             const editStokModal = document.getElementById('editStokModal');
             
             editStokModal.addEventListener('show.bs.modal', function (event) {
-                // Tombol yang memicu modal
                 const button = event.relatedTarget; 
 
                 // Ambil data dari atribut data-* tombol
@@ -177,21 +170,12 @@
                 const satuan = button.getAttribute('data-satuan');
 
                 // Isi data ke dalam elemen-elemen di modal
-                
-                // Judul modal
                 document.getElementById('bahan_baku_nama').textContent = nama;
-                
-                // Input tersembunyi untuk ID
                 document.getElementById('edit_id').value = id; 
-                
-                // Input jumlah
                 document.getElementById('edit_jumlah').value = jumlah;
-                
-                // Teks satuan
                 document.getElementById('bahan_baku_satuan').textContent = satuan;
             });
         });
-        
     </script>
 </body>
 </html>
