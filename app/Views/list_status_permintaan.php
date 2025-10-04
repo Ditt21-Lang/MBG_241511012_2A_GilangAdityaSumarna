@@ -36,7 +36,10 @@
         </div>
         <?php endif; ?>
         
+        <a href="<?= base_url('client/status_permintaan/add') ?>" class="btn btn-info"> Tambah Permintaan </a>
     </div>
+
+
     <div class="container mt-4">
         
         <?php foreach ($list_permintaan as $permintaan): ?>
@@ -50,7 +53,7 @@
                 } else if ($status == 'ditolak'){
                     $statusClass = 'text-danger';
                 } else {
-                    $statusClass = 'bg-warning';
+                    $statusClass = 'text-warning';
                 }
                 ?> 
                 Status: <span class="<?= $statusClass ?>"> 
@@ -85,6 +88,7 @@
         <?php if (empty($list_permintaan)): ?>
             <div class="alert alert-info">Tidak ada data permintaan ditemukan.</div>
         <?php endif; ?>
+
 
     </div>
 </body>

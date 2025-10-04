@@ -16,6 +16,8 @@ $routes->post('auth/processLogin', 'Auth::processLogin');
 $routes->group('client', ['filter' => 'auth:dapur'], function($routes){
     $routes->get('home', 'Clients::client');
     $routes->get('status_permintaan', 'Clients::permintaan');
+    $routes->get('status_permintaan/add', 'Clients::add_permintaan');
+    $routes->post('status_permintaan/save', 'Clients::save_permintaan');
 });
 
 // Admin routes (hanya admin)

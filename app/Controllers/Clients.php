@@ -2,8 +2,11 @@
 
 namespace App\Controllers;
 
+use App\Models\BahanBaku;
 use App\Models\Permintaan;
+use App\Models\PermintaanDetail;
 use CodeIgniter\Controller;
+use CodeIgniter\Model;
 use function PHPUnit\Framework\returnArgument;
 
 class Clients extends Controller{
@@ -75,5 +78,136 @@ class Clients extends Controller{
         ];
 
         return view('template', $data);
+    }
+
+    /**
+     * Menampilkan form tambah permintaan
+     */
+    public function add_permintaan(){
+        $bahanBakuModel = new BahanBaku();
+
+        $statusDiizinkan = ['tersedia', 'segera_kadaluarsa'];
+
+        $dataBahanBaku = $bahanBakuModel->select('id, nama, satuan,jumlah')
+                                        ->where('jumlah >', 0)
+                                        ->whereIn('status', $statusDiizinkan)
+                                        ->findAll();
+
+
+        $data = [
+            'title' => 'Tambah Permintaan',
+            'content' => view('add_permintaan', ['list_bahan_baku' => $dataBahanBaku])
+        ];
+
+        return view('template', $data);
+    }
+
+    /**
+     * Proses menyimpan status permintaan baru ke database
+     */
+    public function save_permintaan(){
+        $session = session();
+
+        $permintaanModel = new Permintaan();
+        $permintaanDetailModel = new PermintaanDetail();
+        $bahanBakuModel = new BahanBaku();
+
+        $error_messages = [];
+        $dataUntukSimpan = []; 
+        $bahanDimintaIdUnik = [];
+
+        $pemohon_id = session()->get('id');
+
+        // Ambil data induk permintaan
+        $data_permintaan = [
+            'pemohon_id' => $pemohon_id,
+            'tgl_masak' => $this->request->getPost('tgl_masak'),
+            'menu_makan' => $this->request->getPost('menu_makan'),
+            'jumlah_porsi' => $this->request->getPost('jumlah_porsi'),
+            'status' => 'menunggu'
+        ];
+
+        // Ambil detail bahan baku yang diminta
+        $bahanDiminta = $this->request->getPost('bahan');
+
+        if(empty($bahanDiminta)){
+            $error_messages[] = "Permintaan bahan baku harus ada minimal satu item!";
+        } else {
+            // Hapus $BahanDimintaDuplikat yang tidak terpakai
+
+            foreach ($bahanDiminta as $index => $detail){
+                $nomorBaris = $index + 1;
+                $namaInput = trim($detail['nama']);
+                // Menggunakan filter_var untuk konversi integer yang aman
+                $jumlahDiminta = (int)filter_var($detail['jumlah'], FILTER_SANITIZE_NUMBER_INT); 
+                
+                // Cari bahan di DB
+                $bahan_db = $bahanBakuModel
+                            ->where('nama', $namaInput)
+                            ->first();
+
+                if (!$bahan_db) {
+                    $error_messages[] = "Baris #{$nomorBaris} ({$namaInput}): Bahan baku tidak terdaftar. Cek daftar di atas.";
+                    continue;
+                }
+
+                $stokTersedia = (int)($bahan_db['jumlah'] ?? 0); 
+                $bahan_id = $bahan_db['id'];
+                $satuan_db = $bahan_db['satuan'];
+
+                // Cek Stok harus > 0
+                if ($stokTersedia <= 0){
+                    $error_messages[] = "Baris #{$nomorBaris} ({$namaInput}): Stok bahan baku ini sudah habis (0 {$satuan_db}).";
+                    continue;
+                }
+
+                // Cek Jumlah input melebih stok
+                if ($jumlahDiminta > $stokTersedia){
+                    $error_messages[] = "Baris #{$nomorBaris} ({$namaInput}): Stok tidak cukup. Diminta: {$jumlahDiminta}, Tersedia: {$stokTersedia} {$satuan_db}.";
+                    continue;
+                }
+
+                // Cek MenCegah permintaan duplikat ID bahan baku
+                if (in_array($bahan_id, $bahanDimintaIdUnik)) {
+                    $error_messages[] = "Baris #{$nomorBaris} ({$namaInput}): Bahan baku ini sudah diminta pada baris sebelumnya.";
+                    continue;
+                }
+
+                // Simpan ID yang lolos ke array pelacak duplikat
+                $bahanDimintaIdUnik[] = $bahan_id;
+                
+                // Simpan detail yang lolos validasi
+                $dataUntukSimpan[] = [
+                    'bahan_id' => $bahan_id,
+                    'jumlah_diminta' => $jumlahDiminta,
+                ];
+            }
+        }
+
+        // Penanganan Error (Validasi Gagal)
+        if (!empty($error_messages)){
+            session()->setFlashdata('error', implode('<br>', $error_messages));
+            return redirect()->back()->withInput();
+        }
+
+        // Proses Penyimpanan
+        if ($permintaanModel->insert($data_permintaan)){
+            $permintaan_id = $permintaanModel->getInsertID();
+
+            foreach($dataUntukSimpan as $detail){
+                $dataDetail = [
+                    'permintaan_id' => $permintaan_id,
+                    'bahan_id' => $detail['bahan_id'],
+                    'jumlah_diminta' => $detail['jumlah_diminta'] 
+                ];
+                $permintaanDetailModel->insert($dataDetail);
+            }
+            
+            session()->setFlashdata('success', 'Permintaan bahan baku berhasil dikirim dan menunggu persetujuan');
+            return redirect()->to(base_url('client/status_permintaan'));
+        } else {
+            session()->setFlashdata('error', 'Gagal menyimpan data induk permintaan!');
+            return redirect()->back()->withInput();
+        }
     }
 }
